@@ -5,10 +5,6 @@ from platform import system as platform
 import speech_recognition as sr
 import _thread as thread
 
-enableVoiceDictation = True
-voiceInputArray = []
-
-
 def bringWindowToFront(windowName="Python"):
     if platform() == 'Darwin':  # How Mac OS X is identified by Python
         os.system(
@@ -17,37 +13,6 @@ def bringWindowToFront(windowName="Python"):
 
 def restartProgram():
     os.execv(sys.executable, ['python3'] + sys.argv)
-
-
-def recognizeVoice(threadIndex):
-    global voiceInputArray
-
-    r = sr.Recognizer()
-
-    r.pause_threshold = 0.05
-    r.non_speaking_duration = 0.05
-    # r.energy_threshold = 450
-
-    with sr.Microphone() as source:
-
-        print("Listening...")
-        while True:
-
-            if not enableVoiceDictation:
-                break
-
-            audio = r.listen(source)
-
-            try:
-                textFromAudio = r.recognize_google(audio)
-                if textFromAudio != "":
-                    voiceInputArray.append(textFromAudio)
-            except sr.UnknownValueError:
-                print("...")
-            except sr.RequestError as e:
-                print("Could not request results from Google Cloud Speech service; {0}".format(e))
-
-        thread.exit()
 
 
 def areaOfIntersectingRects(aExtremeValues, bExtremeValues):  # returns None if rectangles don't intersect
@@ -232,3 +197,9 @@ def getNumberOfVertices(inputContour):
     approximation = cv2.approxPolyDP(inputContour, 0.04 * perimeter, True)
 
     return len(approximation)
+
+def stringToBool(inputString):
+    text = str.lower(inputString)
+    if text == "true":
+        return True
+    return False

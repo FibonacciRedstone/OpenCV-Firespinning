@@ -3,6 +3,7 @@ from HSVCalibrator import HSVCalibrator
 import Utility as util
 from WebcamVideoStream import WebcamVideoStream
 import _thread as thread
+from VoiceControlInterface import VoiceControlInterface
 
 # To Use Logitech Webcam-
 #   If not connecting, run ./fixWebcam
@@ -17,10 +18,13 @@ windowTitle = "Fire Spinning!"
 
 faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
+
+
 displaySettings = True
 useCustomROI = False
 disableMistakenFace = False
 showDebugView = False
+enableDictation = True
 
 currentRotationAngle = 0
 rotationAmount = -30
@@ -45,14 +49,6 @@ def updateShowDebug(inputInt):
     showDebugView = bool(inputInt)
     pass
 
-
-def updateEnableVoice(inputInt):
-    util.enableVoiceDictation = bool(inputInt)
-    if util.enableVoiceDictation is True:
-        thread.start_new_thread(util.recognizeVoice, (0,))
-    pass
-
-
 def createSettingsTrackbars():
     cv2.namedWindow(windowTitle)
 
@@ -60,10 +56,10 @@ def createSettingsTrackbars():
     cv2.createTrackbar("Disable Accidental Face Detection", windowTitle, int(disableMistakenFace), 1,
                       updateDisableMistakenFace)
     cv2.createTrackbar("Enable Debug Mode", windowTitle, int(showDebugView), 1, updateShowDebug)
-    cv2.createTrackbar("Enable Voice Dictation", windowTitle, int(util.enableVoiceDictation), 1, updateEnableVoice)
+    #cv2.createTrackbar("Enable Voice Dictation", windowTitle, int(enableDictation), 1, updateEnableVoice)
 
 
-def detectHandViaHSV(videoCapture, hsvRange, isThreaded=False):
+def detectHandViaHSV(videoCapture, hsvRange, voiceInput, isThreaded=False):
     global currentRotationAngle, showDebugView
     cv2.namedWindow(windowTitle)
     cv2.moveWindow(windowTitle, 350, 100)
@@ -73,17 +69,12 @@ def detectHandViaHSV(videoCapture, hsvRange, isThreaded=False):
         createSettingsTrackbars()
     lastVoiceInput = ""
     while (True):
-        # Capture frame-by-frame
-        if util.enableVoiceDictation and len(util.voiceInputArray) > 0:
-            currentVoiceInput = util.voiceInputArray[-1]
-            if lastVoiceInput != currentVoiceInput:
-                print(currentVoiceInput)
-                if "enable debug" in currentVoiceInput:
-                    showDebugView = True
-                elif "disable debug" in currentVoiceInput:
-                    showDebugView = False
-                cv2.setTrackbarPos("Enable Debug Mode", windowTitle, int(showDebugView))
-                lastVoiceInput = currentVoiceInput
+        #Capture frame-by-frame
+        try:
+            showDebugView = voiceInput.getPropertyValue("debug")
+            rotationAmount = voiceInput.getPropertyValue("rotation_speed")
+        except:
+            print("Unable to recieve voice properties")
 
         if isThreaded:
             frame = videoCapture.read()
@@ -213,16 +204,11 @@ hsvRange = calibrator.calibrateHSVRange()
 threadedVideoCapture = WebcamVideoStream(windowSize=windowSize).start()
 calibrator.videoCapture.release()
 
-if util.enableVoiceDictation:
-    thread.start_new_thread(util.recognizeVoice, (0,))
-    detectHandViaHSV(threadedVideoCapture, hsvRange, True)
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        print("Goodbye...")
-else:
-    detectHandViaHSV(threadedVideoCapture, hsvRange, True)
-    cv2.destroyAllWindows()
+voiceInterface = VoiceControlInterface()
+voiceInterface.createProperty("debug", "bool", False)
+voiceInterface.createProperty("rotation_speed", "int", -30)
+
+detectHandViaHSV(threadedVideoCapture, hsvRange, voiceInterface, True)
+cv2.destroyAllWindows()
 
 threadedVideoCapture.stop()
