@@ -19,8 +19,6 @@ windowTitle = "Fire Spinning!"
 
 faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-
-
 displaySettings = True
 useCustomROI = False
 disableMistakenFace = False
@@ -50,14 +48,14 @@ def updateShowDebug(inputInt):
     showDebugView = bool(inputInt)
     pass
 
+
 def createSettingsTrackbars():
     cv2.namedWindow(windowTitle)
 
     cv2.createTrackbar("Rotation Speed", windowTitle, abs(rotationAmount), 90, updateRotationSpeed)
     cv2.createTrackbar("Disable Accidental Face Detection", windowTitle, int(disableMistakenFace), 1,
-                      updateDisableMistakenFace)
+                       updateDisableMistakenFace)
     cv2.createTrackbar("Enable Debug Mode", windowTitle, int(showDebugView), 1, updateShowDebug)
-    #cv2.createTrackbar("Enable Voice Dictation", windowTitle, int(enableDictation), 1, updateEnableVoice)
 
 
 def detectHandViaHSV(videoCapture, hsvRange, voiceInput, isThreaded=False):
@@ -68,9 +66,9 @@ def detectHandViaHSV(videoCapture, hsvRange, voiceInput, isThreaded=False):
 
     if displaySettings:
         createSettingsTrackbars()
-    lastVoiceInput = ""
+
     while (True):
-        #Capture frame-by-frame
+        # Capture frame-by-frame
         try:
             showDebugView = voiceInput.getPropertyValue("debug")
             rotationAmount = voiceInput.getPropertyValue("rotation_speed")
@@ -214,13 +212,19 @@ voiceInterface = VoiceControlInterface()
 # Create Properties
 voiceInterface.createProperty("debug", "bool", False)
 voiceInterface.createProperty("rotation_speed", "int", -30)
+voiceInterface.createProperty("effect", "list", (["Hello", "World", "Goodbye", "Hell"], 0))
 
 # Create Actions
 voiceInterface.createVoiceAction("SET", ActionMethods.SET)
+voiceInterface.createVoiceAction("INDEX", ActionMethods.INDEX)
 
 # Create Aliases
 voiceInterface.createActionAlias("enable", "set _ to true")
 voiceInterface.createActionAlias("disable", "set _ to false")
+
+voiceInterface.createActionAlias("first", "index _ to 0")
+voiceInterface.createActionAlias("next", "index _ to [i+1]", True)
+voiceInterface.createActionAlias("previous", "index _ to [i-1]", True)
 
 detectHandViaHSV(threadedVideoCapture, hsvRange, voiceInterface, True)
 cv2.destroyAllWindows()

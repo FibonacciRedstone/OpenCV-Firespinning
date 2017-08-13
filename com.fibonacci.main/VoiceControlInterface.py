@@ -78,9 +78,27 @@ class VoiceControlInterface:
 
     def getCommandFromAlias(self, alias, propertyName):
 
-        for aliasString, commandString in self.aliases.items():
+        for (aliasString, (commandString, shouldEval)) in self.aliases.items():
             if alias == aliasString:
                 command = commandString.replace("_", propertyName)
+                if shouldEval:
+                    expressionIndex = command.index("[")
+                    endExpressionIndex = command.index("]")
+
+                    expression = command[expressionIndex + 1: endExpressionIndex]
+                    if "i" in expression:
+                        if self.getPropertyType(propertyName) == "list":
+                            expression = expression.replace("i", "self.voiceProperties[propertyName][1]")
+                        else:
+                            if self.getPropertyType(propertyName) is None:
+                                return
+                            expression = expression.replace("i", "self.voiceProperties[propertyName]")
+
+                    evaluation = str(eval(expression))
+                    command = command[:expressionIndex]
+                    command += evaluation
+                    print(command)
+
                 return command
 
         return None
@@ -103,7 +121,7 @@ class VoiceControlInterface:
         self.voiceProperties[propertyName] = initalValue
         self.propertyTypes[propertyName] = propertyType
 
-    def createActionAlias(self, aliasName, actionText):
+    def createActionAlias(self, aliasName, actionText, shouldEval=False):
         # Action text in form of sample command with "_" indicating property
         # Example "set _ to True"
 
@@ -117,7 +135,7 @@ class VoiceControlInterface:
         if not self.actionExists(actionName):
             raise Exception("Could not create alias, action does not exist")
 
-        self.aliases[aliasName] = actionText
+        self.aliases[aliasName] = (actionText, shouldEval)
 
     def actionExists(self, actionName):
         try:
@@ -151,6 +169,12 @@ class VoiceControlInterface:
 
         elif propertyType == "string":
             setterValue = propValue
+
+        elif propertyType == "list":
+            if type(propValue) == tuple:
+                setterValue = propValue
+            else:
+                raise Exception("Invalid set value for type \"list\"")
 
         else:
             raise Exception("Invalid property name: ", propName)

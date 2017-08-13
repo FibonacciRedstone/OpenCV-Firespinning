@@ -229,3 +229,40 @@ def addCasesToEnum(inputEnum: Enum, inputEnumName, newNameArray, newValueArray=N
 
     outputEnum = Enum(inputEnumName, outputCaseArray, module=__name__)
     return outputEnum
+
+
+def getToIndex(remainingWordData):
+    toIndex = -1
+    if "to" in remainingWordData:
+        toIndex = remainingWordData.index("to")
+    else:
+        # Sometimes Speech recognizes "to 40" as "2:40", This fixes that
+
+
+        for word in remainingWordData:
+            if ":" in word:
+                colonIndex = word.index(":")
+                toIndex = remainingWordData.index(word)
+                remainingWordData.append(word[colonIndex + 1:])
+                break
+
+            if word == "2":
+                toIndex = remainingWordData.index("2")
+                break
+
+        if "-" in remainingWordData:
+            toIndex = remainingWordData.index("-")
+
+    if toIndex == -1:
+        raise Exception("To not present in word data")
+    return toIndex
+
+
+def getPropertyNameBeforeIndex(remainingWordData, wordIndex):
+    propertyWords = remainingWordData[:wordIndex]
+
+    propertyName = ""
+    for word in propertyWords:
+        propertyName += (word + "_")
+    propertyName = propertyName[:-1]
+    return propertyName
