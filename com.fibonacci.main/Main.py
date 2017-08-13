@@ -1,9 +1,10 @@
 import cv2
-from HSVCalibrator import HSVCalibrator
+
+import ActionMethods
 import Utility as util
-from WebcamVideoStream import WebcamVideoStream
-import _thread as thread
+from HSVCalibrator import HSVCalibrator
 from VoiceControlInterface import VoiceControlInterface
+from WebcamVideoStream import WebcamVideoStream
 
 # To Use Logitech Webcam-
 #   If not connecting, run ./fixWebcam
@@ -107,9 +108,12 @@ def detectHandViaHSV(videoCapture, hsvRange, voiceInput, isThreaded=False):
             vertexNum = util.getNumberOfVertices(hullContour)
 
             moment = cv2.moments(contour)
-
-            palmX = int(moment["m10"] / moment["m00"])
-            palmY = int(moment["m01"] / moment["m00"])
+            try:
+                palmX = int(moment["m10"] / moment["m00"])
+                palmY = int(moment["m01"] / moment["m00"])
+            except ZeroDivisionError:
+                palmX = 0
+                palmY = 0
 
         if disableMistakenFace:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -187,12 +191,13 @@ def detectHandViaHSV(videoCapture, hsvRange, voiceInput, isThreaded=False):
         key = cv2.waitKey(30)
         if key & 0xFF == ord('q'):
             print("Quitting....")
-            cv2.destroyAllWindows()
+            voiceInterface.enableVoiceDictation = False
             if isThreaded:
                 videoCapture.stop()
             else:
                 videoCapture.release()
-            quit(0)
+            cv2.destroyAllWindows()
+            raise SystemExit
         if key & 0xFF == ord('r'):
             print("Restarting....")
             util.restartProgram()
@@ -205,8 +210,17 @@ threadedVideoCapture = WebcamVideoStream(windowSize=windowSize).start()
 calibrator.videoCapture.release()
 
 voiceInterface = VoiceControlInterface()
+
+# Create Properties
 voiceInterface.createProperty("debug", "bool", False)
 voiceInterface.createProperty("rotation_speed", "int", -30)
+
+# Create Actions
+voiceInterface.createVoiceAction("SET", ActionMethods.SET)
+
+# Create Aliases
+voiceInterface.createActionAlias("enable", "set _ to true")
+voiceInterface.createActionAlias("disable", "set _ to false")
 
 detectHandViaHSV(threadedVideoCapture, hsvRange, voiceInterface, True)
 cv2.destroyAllWindows()

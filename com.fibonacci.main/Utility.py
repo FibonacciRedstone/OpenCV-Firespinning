@@ -1,9 +1,11 @@
+import os
+import sys
+from enum import Enum
+from platform import system as platform
+
 import cv2
 import numpy as np
-import os, sys
-from platform import system as platform
-import speech_recognition as sr
-import _thread as thread
+
 
 def bringWindowToFront(windowName="Python"):
     if platform() == 'Darwin':  # How Mac OS X is identified by Python
@@ -203,3 +205,27 @@ def stringToBool(inputString):
     if text == "true":
         return True
     return False
+
+
+def addCasesToEnum(inputEnum: Enum, inputEnumName, newNameArray, newValueArray=None):
+    if len(inputEnumName) <= 0:
+        raise Exception("Invalid Enum Name")
+
+    if newValueArray is not None:
+        if len(newNameArray) != len(newValueArray):
+            raise Exception("Different sized name and value arrays")
+
+    outputCaseArray = []
+
+    for case in inputEnum:
+        outputCaseArray.append((case.name, case.value))
+
+    if newValueArray is None:
+        outputCaseArray += newNameArray
+    else:
+        for newName in newNameArray:
+            currentIndex = newNameArray.index(newName)
+            outputCaseArray.append((newName, newValueArray[currentIndex]))
+
+    outputEnum = Enum(inputEnumName, outputCaseArray, module=__name__)
+    return outputEnum

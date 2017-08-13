@@ -1,20 +1,21 @@
-import Utility as util
-import speech_recognition as sr
-from enum import Enum
 import threading
+
+import speech_recognition as sr
+
+import Utility as util
+
 
 class VoiceControlInterface:
     voiceProperties = {}
     propertyTypes = {}
     voiceInputArray = []
-    aliases = {"enable" : "set _ to true", "disable" : "set _ to false"}
+    aliases = {}
+    voiceActions = {}
 
     def __init__(self, enableDictation=True):
         self.enableVoiceDictation = enableDictation
         self.currentThread = threading.Thread(target=self.recognizeVoice)
         self.currentThread.start()
-
-
 
     def recognizeVoice(self):
 
@@ -53,26 +54,27 @@ class VoiceControlInterface:
         lastCommand = lastCommand.lower()
         commands = lastCommand.split()
 
+        if len(self.voiceActions) <= 0:
+            raise Exception("No Voice Actions added")
+
         if len(commands) <= 1:
             return
 
         for alias in self.aliases:
             if alias in commands:
                 index = commands.index(alias)
-                commandString = self.getCommandFromAlias(alias, commands[index+1])
+                commandString = self.getCommandFromAlias(alias, commands[index + 1])
                 commands = commandString.split()
                 break
 
-        for action in VoiceAction:
-            if action.name.lower() in commands:
-                startingIndex = commands.index(action.name.lower())
+        for (actionName, actionFunction) in self.voiceActions.items():
+            if actionName.lower() in commands:
+                startingIndex = commands.index(actionName.lower())
                 commands = commands[startingIndex + 1:]
-                action.value[1](self, commands)
+                actionFunction(self, commands)
                 return
 
         print("No command executed")
-
-
 
     def getCommandFromAlias(self, alias, propertyName):
 
@@ -83,19 +85,12 @@ class VoiceControlInterface:
 
         return None
 
-
-    def getVoiceActionFromString(self, actionString):
-        commandAction = None
-
-        for action in VoiceAction:
-            if action.name.lower() == actionString.lower():
-                commandAction = action
-                break
-        if commandAction is None:
-            raise Exception("Voice Action(", actionString, ") does not exist!")
-        else:
-            return commandAction
-
+    def createVoiceAction(self, actionName, actionFunction):
+        if actionName in self.voiceActions:
+            raise Exception("Could not create voice action: Action already exists with the name \"", actionName, "\"")
+        if actionFunction is None:
+            raise Exception("Could not create voice action: Invalid function")
+        self.voiceActions[actionName.lower()] = actionFunction
 
     def getPropertyValue(self, propertyName):
         try:
@@ -103,67 +98,40 @@ class VoiceControlInterface:
         except:
             raise Exception("Invalid Property Name")
 
-
     def createProperty(self, propertyName, propertyType, initalValue):
 
         self.voiceProperties[propertyName] = initalValue
         self.propertyTypes[propertyName] = propertyType
 
-
-
-    def createActionAlias(self, aliasName, actionName, actionValue):
+    def createActionAlias(self, aliasName, actionText):
+        # Action text in form of sample command with "_" indicating property
+        # Example "set _ to True"
 
         if len(aliasName) <= 0:
             raise Exception("Could not create alias, empty alias name")
 
+        if len(actionText) <= 0:
+            raise Exception("Could not create alias, empty action text")
+
+        actionName = actionText.split()[0]
         if not self.actionExists(actionName):
             raise Exception("Could not create alias, action does not exist")
 
-        aliasString = aliasName + " {}"
-        actionString = actionName
-
-
-
+        self.aliases[aliasName] = actionText
 
     def actionExists(self, actionName):
         try:
-            _ = self.getVoiceActionFromString(actionName)
+            _ = self.voiceActions[actionName.lower()]
             return True
         except:
-           return False
+            return False
 
-    def SET(self, remainingWordData):
-        toIndex = -1
-        if "to" in remainingWordData:
-            toIndex = remainingWordData.index("to")
-            propertyWords = remainingWordData[:toIndex]
-        else:
-            #Sometimes Speech recognizes "to 40" as "2:40", This fixes that
-            for word in remainingWordData:
-                if ":" in word:
-                    colonIndex = word.index(":")
-                    toIndex = remainingWordData.index(word)
-                    propertyWords = remainingWordData[:toIndex]
-                    remainingWordData.append(word[colonIndex+1:])
-                    break
-
-        if toIndex == -1:
+    def getPropertyType(self, propName):
+        if propName not in self.propertyTypes:
+            print("Property ", propName, " does not exist!")
             return
 
-        propertyName = ""
-        for word in propertyWords:
-            propertyName += (word + "_")
-        propertyName = propertyName[:-1]
-
-        #Add possibility for negative numbers
-        if remainingWordData[toIndex+1] == "negative" and self.voiceProperties[propertyName] == "int":
-            propertyValue = remainingWordData[toIndex+2]
-        else:
-            propertyValue = remainingWordData[toIndex+1]
-
-        self.setPropertyValue(propertyName, propertyValue)
-
-
+        return self.propertyTypes[propName]
 
     def setPropertyValue(self, propName, propValue):
 
@@ -189,6 +157,3 @@ class VoiceControlInterface:
 
         self.voiceProperties[propName] = setterValue
         print("Set " + propName + " to " + str(setterValue))
-
-class VoiceAction(Enum):
-    SET = ("set", VoiceControlInterface.SET)
