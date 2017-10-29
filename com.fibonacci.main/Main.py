@@ -24,6 +24,7 @@ useCustomROI = False
 disableMistakenFace = False
 showDebugView = False
 enableDictation = True
+shouldUpdateTrackbars = True
 
 currentRotationAngle = 0
 rotationAmount = -30
@@ -31,31 +32,32 @@ rotationAmount = -30
 maxContourSize = 60000
 
 
-def updateRotationSpeed(newSpeed):
-    global rotationAmount
-    rotationAmount = -newSpeed
-    pass
+def updateTrackbarProperties(voiceInterface):
+    rotationSpeed = cv2.getTrackbarPos("Rotation Speed", windowTitle)
+    voiceInterface.setPropertyValue("rotation_speed", rotationSpeed)
 
-
-def updateDisableMistakenFace(inputInt):
     global disableMistakenFace
-    disableMistakenFace = bool(inputInt)
+    disableMistakenFace = bool(cv2.getTrackbarPos("Disable Accidental Face Detection", windowTitle))
+
+    debugValue = cv2.getTrackbarPos("Enable Debug Mode", windowTitle)
+    voiceInterface.setPropertyValue("debug", debugValue)
+
+
+def functionUpdated(int):
+    global shouldUpdateTrackbars
+    shouldUpdateTrackbars = True
     pass
 
 
-def updateShowDebug(inputInt):
-    global showDebugView
-    showDebugView = bool(inputInt)
-    pass
-
-
-def createSettingsTrackbars():
+def createSettingsTrackbars(voiceInterface):
     cv2.namedWindow(windowTitle)
 
-    cv2.createTrackbar("Rotation Speed", windowTitle, abs(rotationAmount), 90, updateRotationSpeed)
+    cv2.createTrackbar("Rotation Speed", windowTitle, abs(voiceInterface.getPropertyValue("rotation_speed")), 90,
+                       functionUpdated)
     cv2.createTrackbar("Disable Accidental Face Detection", windowTitle, int(disableMistakenFace), 1,
-                       updateDisableMistakenFace)
-    cv2.createTrackbar("Enable Debug Mode", windowTitle, int(showDebugView), 1, updateShowDebug)
+                       functionUpdated)
+    cv2.createTrackbar("Enable Debug Mode", windowTitle, int(voiceInterface.getPropertyValue("debug")), 1,
+                       functionUpdated)
 
 
 def detectHandViaHSV(videoCapture, hsvRange, voiceInput, isThreaded=False):
@@ -65,10 +67,18 @@ def detectHandViaHSV(videoCapture, hsvRange, voiceInput, isThreaded=False):
     util.bringWindowToFront()
 
     if displaySettings:
-        createSettingsTrackbars()
+        createSettingsTrackbars(voiceInput)
+
 
     while (True):
         # Capture frame-by-frame
+
+        if displaySettings:
+            global shouldUpdateTrackbars
+            if shouldUpdateTrackbars:
+                updateTrackbarProperties(voiceInterface)
+                shouldUpdateTrackbars = False
+
         try:
             showDebugView = voiceInput.getPropertyValue("debug")
             rotationAmount = voiceInput.getPropertyValue("rotation_speed")
@@ -210,8 +220,8 @@ calibrator.videoCapture.release()
 voiceInterface = VoiceControlInterface()
 
 # Create Properties
-voiceInterface.createProperty("debug", "bool", False)
-voiceInterface.createProperty("rotation_speed", "int", -30)
+voiceInterface.createProperty("debug", "bool", True, ("Enable Debug Mode", windowTitle))
+voiceInterface.createProperty("rotation_speed", "int", -30, ("Enable Debug Mode", windowTitle))
 voiceInterface.createProperty("effect", "list", (["Hello", "World", "Goodbye", "Hell"], 0))
 
 # Create Actions

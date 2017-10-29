@@ -2,17 +2,30 @@ import threading
 
 import speech_recognition as sr
 
+global opencvIsInstalled
+try:
+    import cv2
+
+    opencvIsInstalled = True
+except ImportError:
+    print("OpenCV is not installed, no trackbar support!")
+    opencvIsInstalled = False
+
 import Utility as util
 
 
 class VoiceControlInterface:
-    voiceProperties = {}
-    propertyTypes = {}
-    voiceInputArray = []
-    aliases = {}
-    voiceActions = {}
 
     def __init__(self, enableDictation=True):
+
+        self.voiceProperties = {}
+        self.propertyTypes = {}
+        self.trackbarInfoDict = {}
+
+        self.voiceInputArray = []
+        self.aliases = {}
+        self.voiceActions = {}
+
         self.enableVoiceDictation = enableDictation
         self.currentThread = threading.Thread(target=self.recognizeVoice)
         self.currentThread.start()
@@ -116,10 +129,11 @@ class VoiceControlInterface:
         except:
             raise Exception("Invalid Property Name")
 
-    def createProperty(self, propertyName, propertyType, initalValue):
+    def createProperty(self, propertyName, propertyType, initalValue, trackbarInfo=None):
 
         self.voiceProperties[propertyName] = initalValue
         self.propertyTypes[propertyName] = propertyType
+        self.trackbarInfoDict[propertyName] = trackbarInfo
 
     def createActionAlias(self, aliasName, actionText, shouldEval=False):
         # Action text in form of sample command with "_" indicating property
@@ -160,7 +174,15 @@ class VoiceControlInterface:
         propertyType = self.propertyTypes[propName]
 
         if propertyType == "bool":
-            setterValue = util.stringToBool(propValue)
+            if type(propValue) is bool:
+                setterValue = propValue
+            elif type(propValue) is int:
+
+                if propValue != 0 and propValue != 1:
+                    raise Exception("Invalid value for property: ", propName)
+                setterValue = bool(propValue)
+            else:
+                setterValue = util.stringToBool(propValue)
 
         elif propertyType == "int":
             if propValue == "zero":
@@ -180,4 +202,12 @@ class VoiceControlInterface:
             raise Exception("Invalid property name: ", propName)
 
         self.voiceProperties[propName] = setterValue
+        global opencvIsInstalled
+        if opencvIsInstalled:
+            trackbarInfo = self.trackbarInfoDict[propName]
+            if trackbarInfo is not None:
+                trackbarName = trackbarInfo[0]
+                trackbarWindowName = trackbarInfo[1]
+                cv2.setTrackbarPos(trackbarName, trackbarWindowName, int(setterValue))
+
         print("Set " + propName + " to " + str(setterValue))
